@@ -7,54 +7,69 @@ namespace DatabaseConnections
     {
         public static void Main(string[] args)
         {
-            DataContextDapper dapper = new DataContextDapper();
+            // DataContextDapper dapper = new DataContextDapper();
+            DataContextEF entityFramework = new DataContextEF();
 
-            DateTime now = dapper.LoadDataSingle<DateTime>("SELECT GETDATE()");
+            // DateTime now = dapper.LoadDataSingle<DateTime>("SELECT GETDATE()");
 
-            Console.WriteLine(now);
+            // Console.WriteLine(now);
 
             Computer myComputer = new Computer()
             {
                 Motherboard = "Z690",
                 HasWifi = true,
                 HasLte = false,
-                ReleaseDate = DateTime.Now.ToString("yyyy-MM-dd hh:MM:ss"),
+                ReleaseDate = DateTime.Now,
                 Price = 943m,
                 VideoCard = "RTX 2060"
             };
 
-            string sql = @"INSERT INTO TutorialAppSchema.Computer (
-                    Motherboard,
-                    HasWifi,
-                    HasLte,
-                    ReleaseDate,
-                    Price,
-                    VideoCard
-                ) VALUES ('" + myComputer.Motherboard
-                        + "','" + myComputer.HasWifi
-                        + "','" + myComputer.HasLte
-                        + "','" + myComputer.ReleaseDate
-                        + "','" + myComputer.Price
-                        + "','" + myComputer.VideoCard
-                + "')";
+            entityFramework.Add(myComputer);
+            entityFramework.SaveChanges();
 
-            bool result = dapper.ExecuteSql(sql);
+            // string sql = @"INSERT INTO TutorialAppSchema.Computer (
+            //         Motherboard,
+            //         HasWifi,
+            //         HasLte,
+            //         ReleaseDate,
+            //         Price,
+            //         VideoCard
+            //     ) VALUES ('" + myComputer.Motherboard
+            //             + "','" + myComputer.HasWifi
+            //             + "','" + myComputer.HasLte
+            //             + "','" + myComputer.ReleaseDate
+            //             + "','" + myComputer.Price
+            //             + "','" + myComputer.VideoCard
+            //     + "')";
 
-            sql = @"
-            SELECT
-                    Computer.Motherboard,
-                    Computer.HasWifi,
-                    Computer.HasLte,
-                    Computer.ReleaseDate,
-                    Computer.Price,
-                    Computer.VideoCard
-            FROM TutorialAppSchema.Computer";
+            // bool result = dapper.ExecuteSql(sql);
 
-            IEnumerable<Computer> computers = dapper.LoadData<Computer>(sql);
+            // sql = @"
+            // SELECT
+            //         Computer.ComputerId,
+            //         Computer.Motherboard,
+            //         Computer.HasWifi,
+            //         Computer.HasLte,
+            //         Computer.ReleaseDate,
+            //         Computer.Price,
+            //         Computer.VideoCard
+            // FROM TutorialAppSchema.Computer";
 
-            foreach (Computer singleComputer in computers)
+            // IEnumerable<Computer> computers = dapper.LoadData<Computer>(sql);
+            IEnumerable<Computer>? computersEf = entityFramework.Computer?.ToList<Computer>();
+
+            // foreach (Computer singleComputer in computers)
+            // {
+            //     Console.WriteLine(singleComputer.ComputerId);
+            // }
+
+
+            if (computersEf != null)
             {
-                Console.WriteLine(singleComputer.Motherboard);
+                foreach (Computer singleComputer in computersEf)
+                {
+                    Console.WriteLine(singleComputer.ComputerId);
+                }
             }
         }
     }
