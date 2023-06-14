@@ -1,0 +1,14 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+*.cache
+*.editorconfig
+*.vs
+*bin
+*obj
+/DotnetApi/Basic/Properties/launchSettings.json
+/.gitignore
+/DotnetApi/Basic/appsettings.Development.json
+/DotnetApi/Basic/appsettings.json
+/.gitignore
