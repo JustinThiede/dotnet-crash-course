@@ -1,5 +1,7 @@
+using Basic.Data;
 using Basic.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.VisualBasic;
 
 namespace Basic.Controllers
 {
@@ -7,8 +9,17 @@ namespace Basic.Controllers
     [Route("[controller]")]
     public class UserController : ControllerBase
     {
-        public UserController()
+        private DataContextDapper _dapper;
+
+        public UserController(IConfiguration config)
         {
+            _dapper = new DataContextDapper(config);
+        }
+
+        [HttpGet("TestConnection")]
+        public DateTime TestConnection()
+        {
+            return _dapper.LoadDataSingle<DateTime>("SELECT GETDATE()");
         }
 
         [HttpGet("GetUsers/{testValue}")]
