@@ -1,5 +1,5 @@
 ﻿namespace Basic.Models;
-public partial class User
+public partial class UserJobInfo
 {
     public int UserId { get; set; }
     public string FirstName { get; set; }
@@ -8,7 +8,7 @@ public partial class User
     public string Gender { get; set; }
     public bool Active { get; set; }
 
-    public User()
+    public UserJobInfo()
     {
         if (FirstName == null)
         {
