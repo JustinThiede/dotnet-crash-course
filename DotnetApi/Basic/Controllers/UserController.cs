@@ -1,7 +1,6 @@
 using Basic.Data;
 using Basic.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.VisualBasic;
 
 namespace Basic.Controllers
 {
@@ -22,10 +21,37 @@ namespace Basic.Controllers
             return _dapper.LoadDataSingle<DateTime>("SELECT GETDATE()");
         }
 
-        [HttpGet("GetUsers/{testValue}")]
-        public string[] GetUsers(string testValue)
+        [HttpGet("GetUsers")]
+        public IEnumerable<User> GetUsers()
         {
-            return new string[] { "user1", "user2", testValue};
+            var sql = @"
+                SELECT [UserId]
+                      ,[FirstName]
+                      ,[LastName]
+                      ,[Email]
+                      ,[Gender]
+                      ,[Active]
+                  FROM [DotNetCourseDatabase].[TutorialAppSchema].[Users]";
+            var users = _dapper.LoadData<User>(sql);
+
+            return users;
+        }
+
+        [HttpGet("GetSingleUser/{userId}")]
+        public User GetSingleUser(int userId)
+        {
+            var sql = @"
+                SELECT [UserId]
+                      ,[FirstName]
+                      ,[LastName]
+                      ,[Email]
+                      ,[Gender]
+                      ,[Active]
+                  FROM [DotNetCourseDatabase].[TutorialAppSchema].[Users]
+                    WHERE UserId = " + userId.ToString();
+            var user = _dapper.LoadDataSingle<User>(sql);
+
+            return user;
         }
     }
 }
