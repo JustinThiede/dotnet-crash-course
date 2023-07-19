@@ -1,4 +1,5 @@
 using Basic.Data;
+using Basic.Dtos;
 using Basic.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -72,7 +73,7 @@ namespace Basic.Controllers
         }
 
         [HttpPost]
-        public IActionResult AddUser(User user)
+        public IActionResult AddUser(UserToAddDto userToAdd)
         {
             var sql = @$"
             INSERT INTO TutorialAppSchema.Users(
@@ -82,11 +83,11 @@ namespace Basic.Controllers
                 [Gender],
                 [Active]
             ) VALUES (
-                '{user.FirstName}',
-                '{user.LastName}',
-                '{user.Email}',
-            '{user.Gender}',
-            '{user.Active}')";
+                '{userToAdd.FirstName}',
+                '{userToAdd.LastName}',
+                '{userToAdd.Email}',
+            '{userToAdd.Gender}',
+            '{userToAdd.Active}')";
 
             if (_dapper.ExecuteSql(sql)) return Ok();
 
