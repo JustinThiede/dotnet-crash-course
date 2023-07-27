@@ -1,11 +1,11 @@
-﻿namespace Basic.Models;
-public partial class UserJobInfo
+﻿namespace Basic.Dtos;
+
+public partial class UserJobInfoToAddDto
 {
-    public int UserId { get; set; }
     public string JobTitle { get; set; }
     public string Department { get; set; }
 
-    public UserJobInfo()
+    public UserJobInfoToAddDto()
     {
         if (JobTitle == null) JobTitle = "";
 
