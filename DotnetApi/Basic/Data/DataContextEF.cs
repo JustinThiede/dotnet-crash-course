@@ -29,7 +29,15 @@ public class DataContextEF : DbContext
 
         modelBuilder.Entity<User>().HasKey(u => u.UserId);
 
+        modelBuilder.Entity<User>().HasOne(u => u.UserSalary) // User has one UserSalary
+            .WithOne(s => s.User) // UserSalary has one User
+            .HasForeignKey<UserSalary>(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
+
         modelBuilder.Entity<UserSalary>().HasKey(u => u.UserId);
+
+        modelBuilder.Entity<User>().HasOne(u => u.UserJobInfo) // User has one UserJobInfo
+            .WithOne(j => j.User) // UserJobInfo has one User
+            .HasForeignKey<UserJobInfo>(j => j.UserId).OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<UserJobInfo>().HasKey(u => u.UserId);
     }
