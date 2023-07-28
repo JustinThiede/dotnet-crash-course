@@ -8,6 +8,10 @@ public partial class User
     public string Gender { get; set; }
     public bool Active { get; set; }
 
+    public UserSalary UserSalary { get; set; }
+
+    public UserJobInfo UserJobInfo { get; set; }
+
     public User()
     {
         if (FirstName == null)
