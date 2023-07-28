@@ -57,8 +57,12 @@ public class UserJobInfoControllerEF : ControllerBase
     public IActionResult AddUserJobInfo(UserJobInfoToAddDto userJobInfoToAdd)
     {
         var userJobInfoDb = _mapper.Map<UserJobInfo>(userJobInfoToAdd);
+        var user = _entityFramework.Users.SingleOrDefault(user => user.UserId == userJobInfoDb.UserId);
+
+        if (user == null) throw new Exception("User does not exist");
 
         _entityFramework.Add(userJobInfoDb);
+
         if (_entityFramework.SaveChanges() > 0) return Ok();
 
         throw new Exception("Failed to Add User Job Info");
