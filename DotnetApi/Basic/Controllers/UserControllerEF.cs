@@ -1,10 +1,10 @@
 using AutoMapper;
-using Basic.Data;
-using Basic.Dtos;
-using Basic.Models;
+using Intermediate.Data;
+using Intermediate.Dtos;
+using Intermediate.Models;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Basic.Controllers;
+namespace Intermediate.Controllers;
 
 [ApiController]
 [Route("[controller]")]
