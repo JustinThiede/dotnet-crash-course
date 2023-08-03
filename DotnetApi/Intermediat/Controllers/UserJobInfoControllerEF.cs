@@ -10,20 +10,20 @@ namespace Intermediate.Controllers;
 [Route("[controller]")]
 public class UserJobInfoControllerEF : ControllerBase
 {
-    private DataContextEF _entityFramework;
-
     private IMapper _mapper;
 
-    public UserJobInfoControllerEF(IConfiguration config)
+    private IUserRepository _userRepository;
+
+    public UserJobInfoControllerEF(IUserRepository userRepository)
     {
-        _entityFramework = new DataContextEF(config);
         _mapper = new Mapper(new MapperConfiguration(cfg => { cfg.CreateMap<UserJobInfoToAddDto, UserJobInfo>(); }));
+        _userRepository = userRepository;
     }
 
     [HttpGet("GetUsersJobInfo")]
     public IEnumerable<UserJobInfo> GetUsersJobInfo()
     {
-        var usersJobInfo = _entityFramework.UserJobInfo.ToList<UserJobInfo>();
+        var usersJobInfo = _userRepository.GetUsersJobInfo();
 
         return usersJobInfo;
     }
@@ -31,24 +31,18 @@ public class UserJobInfoControllerEF : ControllerBase
     [HttpGet("GetSingleUserJobInfo/{userId}")]
     public UserJobInfo GetSingleUserJobInfo(int userId)
     {
-        var usersJobInfo = _entityFramework.UserJobInfo.FirstOrDefault(u => u.UserId == userId);
-
-        if (usersJobInfo != null) return usersJobInfo;
-
-        throw new Exception("Failed to Get User Job Info");
+        return _userRepository.GetSingleUserJobInfo(userId);
     }
 
     [HttpPut]
     public IActionResult EditUserJobInfo(UserJobInfo userJobInfo)
     {
-        var userJobInfoDb = _entityFramework.UserJobInfo.FirstOrDefault(u => u.UserId == userJobInfo.UserId);
-
-        if (userJobInfoDb == null) throw new Exception("Failed to Get User Job Info");
+        var userJobInfoDb = _userRepository.GetSingleUserJobInfo(userJobInfo.UserId);
 
         userJobInfoDb.JobTitle = userJobInfo.JobTitle;
         userJobInfoDb.Department = userJobInfo.Department;
 
-        if (_entityFramework.SaveChanges() > 0) return Ok();
+        if (_userRepository.SaveChanges()) return Ok();
 
         throw new Exception("Failed to Update User Job Info");
     }
@@ -57,13 +51,19 @@ public class UserJobInfoControllerEF : ControllerBase
     public IActionResult AddUserJobInfo(UserJobInfoToAddDto userJobInfoToAdd)
     {
         var userJobInfoDb = _mapper.Map<UserJobInfo>(userJobInfoToAdd);
-        var user = _entityFramework.Users.SingleOrDefault(user => user.UserId == userJobInfoDb.UserId);
 
-        if (user == null) throw new Exception("User does not exist");
+        try
+        {
+            _userRepository.GetSingleUser(userJobInfoToAdd.UserId);
+        }
+        catch (Exception e)
+        {
+            throw new Exception("User does not exist");
+        }
 
-        _entityFramework.Add(userJobInfoDb);
+        _userRepository.AddEntity<UserJobInfo>(userJobInfoDb);
 
-        if (_entityFramework.SaveChanges() > 0) return Ok();
+        if (_userRepository.SaveChanges()) return Ok();
 
         throw new Exception("Failed to Add User Job Info");
     }
@@ -71,13 +71,11 @@ public class UserJobInfoControllerEF : ControllerBase
     [HttpDelete("DeleteUserJobInfo/{userId}")]
     public IActionResult DeleteUserJobInfo(int userId)
     {
-        var userJobInfoDb = _entityFramework.UserJobInfo.FirstOrDefault(u => u.UserId == userId);
+        var userJobInfoDb = _userRepository.GetSingleUserJobInfo(userId);
 
-        if (userJobInfoDb == null) throw new Exception("Failed to Get User Job Info");
+        _userRepository.RemoveEntity<UserJobInfo>(userJobInfoDb);
 
-        _entityFramework.Remove(userJobInfoDb);
-
-        if (_entityFramework.SaveChanges() > 0) return Ok();
+        if (_userRepository.SaveChanges()) return Ok();
 
         throw new Exception("Failed to Delete User Job Info");
     }
