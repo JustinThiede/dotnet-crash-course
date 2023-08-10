@@ -1,8 +1,12 @@
-﻿using System.Security.Cryptography;
+﻿using System.Data;
+using System.Security.Cryptography;
+using System.Text;
 using Intermediate.Data;
 using Intermediate.Dtos;
 using Intermediate.Models;
+using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 
 namespace Intermediate.Controllers
 {
@@ -37,7 +41,34 @@ namespace Intermediate.Controllers
 
             var passwordSaltPlusString = _configuration.GetSection("AppSettings:PasswordKey").Value + Convert.ToBase64String(passwordSalt);
 
-            return Ok();
+            var passwordHash = KeyDerivation.Pbkdf2(userForRegistration.Password, Encoding.ASCII.GetBytes(passwordSaltPlusString), KeyDerivationPrf.HMACSHA256, 100000, 256 / 8);
+
+            var sqlAddAuth = @"INSERT INTO TutorialAppSchema.Auth ([Email], [PasswordHash], [PasswordSalt]) VALUES (@Email, @PasswordHash, @PasswordSalt)";
+
+            var sqlParameters = new List<SqlParameter>();
+
+            var emailParameter = new SqlParameter("@Email", SqlDbType.NVarChar)
+            {
+                Value = userForRegistration.Email
+            };
+
+            var passwordSaltParameter = new SqlParameter("@PasswordSalt", SqlDbType.VarBinary)
+            {
+                Value = passwordSalt
+            };
+
+            var passwordHashParameter = new SqlParameter("@PasswordHash", SqlDbType.VarBinary)
+            {
+                Value = passwordHash
+            };
+
+            sqlParameters.Add(emailParameter);
+            sqlParameters.Add(passwordSaltParameter);
+            sqlParameters.Add(passwordHashParameter);
+
+            if (_dataContext.ExecuteSqlWithParameters(sqlAddAuth, sqlParameters)) return Ok();
+
+            throw new Exception("Failed to add user.");
         }
 
         [HttpPost("Login")]
