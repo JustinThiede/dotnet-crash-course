@@ -39,9 +39,7 @@ namespace Intermediate.Controllers
                 rng.GetNonZeroBytes(passwordSalt);
             }
 
-            var passwordSaltPlusString = _configuration.GetSection("AppSettings:PasswordKey").Value + Convert.ToBase64String(passwordSalt);
-
-            var passwordHash = KeyDerivation.Pbkdf2(userForRegistration.Password, Encoding.ASCII.GetBytes(passwordSaltPlusString), KeyDerivationPrf.HMACSHA256, 100000, 256 / 8);
+            var passwordHash = GetPasswordHash(userForRegistration.Password, passwordSalt);
 
             var sqlAddAuth = @"INSERT INTO TutorialAppSchema.Auth ([Email], [PasswordHash], [PasswordSalt]) VALUES (@Email, @PasswordHash, @PasswordSalt)";
 
@@ -74,7 +72,35 @@ namespace Intermediate.Controllers
         [HttpPost("Login")]
         public IActionResult Login(UserForLoginDto userForLogin)
         {
+            var sqlForHashAndSalt = @"SELECT 
+                [PasswordHash],
+                [PasswordSalt] FROM TutorialAppSchema.Auth WHERE Email = '" + userForLogin.Email + "'";
+
+            var userForConfirmation = _dataContext.LoadDataSingle<UserForLoginConfirmationDto>(sqlForHashAndSalt);
+
+            var passwordHash = GetPasswordHash(userForLogin.Password, userForConfirmation.PasswordSalt);
+
+            if (!ConstantTimeComparison(passwordHash, userForConfirmation.PasswordHash)) return StatusCode(401, "Incorrect password!");
+
             return Ok();
+        }
+
+        private byte[] GetPasswordHash(string password, byte[] passwordSalt)
+        {
+            var passwordSaltPlusString = _configuration.GetSection("AppSettings:PasswordKey").Value + Convert.ToBase64String(passwordSalt);
+
+            return KeyDerivation.Pbkdf2(password, Encoding.ASCII.GetBytes(passwordSaltPlusString), KeyDerivationPrf.HMACSHA256, 100000, 256 / 8);
+        }
+
+        private static bool ConstantTimeComparison(byte[] a, byte[] b)
+        {
+            if (a.Length != b.Length)
+                return false;
+
+            var result = 0;
+            for (var i = 0; i < a.Length; i++) result |= a[i] ^ b[i];
+
+            return result == 0;
         }
     }
 }
