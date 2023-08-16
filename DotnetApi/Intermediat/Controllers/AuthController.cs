@@ -1,4 +1,6 @@
 ﻿using System.Data;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Intermediate.Data;
@@ -7,6 +9,7 @@ using Intermediate.Models;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Intermediate.Controllers
 {
@@ -64,9 +67,24 @@ namespace Intermediate.Controllers
             sqlParameters.Add(passwordSaltParameter);
             sqlParameters.Add(passwordHashParameter);
 
-            if (_dataContext.ExecuteSqlWithParameters(sqlAddAuth, sqlParameters)) return Ok();
+            if (_dataContext.ExecuteSqlWithParameters(sqlAddAuth, sqlParameters))
+            {
+                var sqlAddUser = @"
+                            INSERT INTO TutorialAppSchema.Users(
+                                [FirstName],
+                                [LastName],
+                                [Email],
+                                [Gender],
+                                [Active]
+                            ) VALUES (" + "'" + userForRegistration.FirstName + "', '" + userForRegistration.LastName + "', '" + userForRegistration.Email + "', '" + userForRegistration.Gender + "', 1)";
 
-            throw new Exception("Failed to add user.");
+
+                if (!_dataContext.ExecuteSql(sqlAddUser)) throw new Exception("Failed to add user.");
+
+                return Ok();
+            }
+
+            throw new Exception("Failed to register user.");
         }
 
         [HttpPost("Login")]
@@ -101,6 +119,34 @@ namespace Intermediate.Controllers
             for (var i = 0; i < a.Length; i++) result |= a[i] ^ b[i];
 
             return result == 0;
+        }
+
+
+        private string CreateToken(int userId)
+        {
+            Claim[] claims = new Claim[]
+            {
+                new("userId", userId.ToString())
+            };
+
+            var tokenKeyString = _configuration.GetSection("AppSettings:TokenKey").Value;
+
+            var tokenKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(tokenKeyString != null ? tokenKeyString : ""));
+
+            var credentials = new SigningCredentials(tokenKey, SecurityAlgorithms.HmacSha512Signature);
+
+            var descriptor = new SecurityTokenDescriptor()
+            {
+                Subject = new ClaimsIdentity(claims),
+                SigningCredentials = credentials,
+                Expires = DateTime.Now.AddDays(1)
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+
+            var token = tokenHandler.CreateToken(descriptor);
+
+            return tokenHandler.WriteToken(token);
         }
     }
 }
