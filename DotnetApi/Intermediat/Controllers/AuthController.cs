@@ -6,6 +6,7 @@ using System.Text;
 using Intermediate.Data;
 using Intermediate.Dtos;
 using Intermediate.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -13,6 +14,9 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Intermediate.Controllers
 {
+    [Authorize]
+    [ApiController]
+    [Route("[controller]")]
     public class AuthController : ControllerBase
     {
         private readonly DataContextDapper _dataContext;
@@ -25,6 +29,7 @@ namespace Intermediate.Controllers
             _configuration = configuration;
         }
 
+        [AllowAnonymous]
         [HttpPost("Register")]
         public IActionResult Register(UserForRegistrationDto userForRegistration)
         {
@@ -87,6 +92,7 @@ namespace Intermediate.Controllers
             throw new Exception("Failed to register user.");
         }
 
+        [AllowAnonymous]
         [HttpPost("Login")]
         public IActionResult Login(UserForLoginDto userForLogin)
         {
@@ -106,6 +112,17 @@ namespace Intermediate.Controllers
             {
                 { "token", CreateToken(userId) }
             });
+        }
+
+        [HttpGet("RefreshToken")]
+        public string RefreshToken()
+        {
+            var userIdSql = @"
+                SELECT UserId FROM TutorialAppSchema.Users WHERE UserId = '" + User.FindFirst("userId")?.Value + "'";
+
+            var userId = _dataContext.LoadDataSingle<int>(userIdSql);
+
+            return CreateToken(userId);
         }
 
         private byte[] GetPasswordHash(string password, byte[] passwordSalt)
