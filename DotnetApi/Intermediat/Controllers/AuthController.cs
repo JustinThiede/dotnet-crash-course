@@ -95,12 +95,17 @@ namespace Intermediate.Controllers
                 [PasswordSalt] FROM TutorialAppSchema.Auth WHERE Email = '" + userForLogin.Email + "'";
 
             var userForConfirmation = _dataContext.LoadDataSingle<UserForLoginConfirmationDto>(sqlForHashAndSalt);
-
             var passwordHash = GetPasswordHash(userForLogin.Password, userForConfirmation.PasswordSalt);
 
             if (!ConstantTimeComparison(passwordHash, userForConfirmation.PasswordHash)) return StatusCode(401, "Incorrect password!");
 
-            return Ok();
+            var userIdSql = "SELECT UserId FROM TutorialAppSchema.Users WHERE Email = '" + userForLogin.Email + "'";
+            var userId = _dataContext.LoadDataSingle<int>(userIdSql);
+
+            return Ok(new Dictionary<string, string>
+            {
+                { "token", CreateToken(userId) }
+            });
         }
 
         private byte[] GetPasswordHash(string password, byte[] passwordSalt)
