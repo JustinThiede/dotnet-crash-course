@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Intermediate.Data;
 using Intermediate.Dtos;
+using Intermediate.Helpers;
 using Intermediate.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
@@ -12,69 +13,69 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Intermediate.Controllers
+namespace Intermediate.Controllers;
+
+[Authorize]
+[ApiController]
+[Route("[controller]")]
+public class AuthController : ControllerBase
 {
-    [Authorize]
-    [ApiController]
-    [Route("[controller]")]
-    public class AuthController : ControllerBase
+    private readonly DataContextDapper _dataContext;
+
+    private readonly AuthHelper _authHelper;
+
+    public AuthController(IConfiguration configuration)
     {
-        private readonly DataContextDapper _dataContext;
+        _dataContext = new DataContextDapper(configuration);
+        _authHelper = new AuthHelper(configuration);
+    }
 
-        private readonly IConfiguration _configuration;
+    [AllowAnonymous]
+    [HttpPost("Register")]
+    public IActionResult Register(UserForRegistrationDto userForRegistration)
+    {
+        if (userForRegistration.Password != userForRegistration.PasswordConfirm) throw new Exception("Passwords do not match!");
 
-        public AuthController(IConfiguration configuration)
+        var sqlCheckUserExists = "SELECT Email From TutorialAppSchema.Auth WHERE Email = '" + userForRegistration.Email + "'";
+        var existingUsers = _dataContext.LoadData<string>(sqlCheckUserExists);
+
+        if (existingUsers.Any()) throw new Exception("User with this email already exists!");
+
+        var passwordSalt = new byte[16];
+
+        using (var rng = RandomNumberGenerator.Create())
         {
-            _dataContext = new DataContextDapper(configuration);
-            _configuration = configuration;
+            rng.GetNonZeroBytes(passwordSalt);
         }
 
-        [AllowAnonymous]
-        [HttpPost("Register")]
-        public IActionResult Register(UserForRegistrationDto userForRegistration)
+        var passwordHash = _authHelper.GetPasswordHash(userForRegistration.Password, passwordSalt);
+
+        var sqlAddAuth = @"INSERT INTO TutorialAppSchema.Auth ([Email], [PasswordHash], [PasswordSalt]) VALUES (@Email, @PasswordHash, @PasswordSalt)";
+
+        var sqlParameters = new List<SqlParameter>();
+
+        var emailParameter = new SqlParameter("@Email", SqlDbType.NVarChar)
         {
-            if (userForRegistration.Password != userForRegistration.PasswordConfirm) throw new Exception("Passwords do not match!");
+            Value = userForRegistration.Email
+        };
 
-            var sqlCheckUserExists = "SELECT Email From TutorialAppSchema.Auth WHERE Email = '" + userForRegistration.Email + "'";
-            var existingUsers = _dataContext.LoadData<string>(sqlCheckUserExists);
+        var passwordSaltParameter = new SqlParameter("@PasswordSalt", SqlDbType.VarBinary)
+        {
+            Value = passwordSalt
+        };
 
-            if (existingUsers.Any()) throw new Exception("User with this email already exists!");
+        var passwordHashParameter = new SqlParameter("@PasswordHash", SqlDbType.VarBinary)
+        {
+            Value = passwordHash
+        };
 
-            var passwordSalt = new byte[16];
+        sqlParameters.Add(emailParameter);
+        sqlParameters.Add(passwordSaltParameter);
+        sqlParameters.Add(passwordHashParameter);
 
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetNonZeroBytes(passwordSalt);
-            }
-
-            var passwordHash = GetPasswordHash(userForRegistration.Password, passwordSalt);
-
-            var sqlAddAuth = @"INSERT INTO TutorialAppSchema.Auth ([Email], [PasswordHash], [PasswordSalt]) VALUES (@Email, @PasswordHash, @PasswordSalt)";
-
-            var sqlParameters = new List<SqlParameter>();
-
-            var emailParameter = new SqlParameter("@Email", SqlDbType.NVarChar)
-            {
-                Value = userForRegistration.Email
-            };
-
-            var passwordSaltParameter = new SqlParameter("@PasswordSalt", SqlDbType.VarBinary)
-            {
-                Value = passwordSalt
-            };
-
-            var passwordHashParameter = new SqlParameter("@PasswordHash", SqlDbType.VarBinary)
-            {
-                Value = passwordHash
-            };
-
-            sqlParameters.Add(emailParameter);
-            sqlParameters.Add(passwordSaltParameter);
-            sqlParameters.Add(passwordHashParameter);
-
-            if (_dataContext.ExecuteSqlWithParameters(sqlAddAuth, sqlParameters))
-            {
-                var sqlAddUser = @"
+        if (_dataContext.ExecuteSqlWithParameters(sqlAddAuth, sqlParameters))
+        {
+            var sqlAddUser = @"
                             INSERT INTO TutorialAppSchema.Users(
                                 [FirstName],
                                 [LastName],
@@ -84,91 +85,44 @@ namespace Intermediate.Controllers
                             ) VALUES (" + "'" + userForRegistration.FirstName + "', '" + userForRegistration.LastName + "', '" + userForRegistration.Email + "', '" + userForRegistration.Gender + "', 1)";
 
 
-                if (!_dataContext.ExecuteSql(sqlAddUser)) throw new Exception("Failed to add user.");
+            if (!_dataContext.ExecuteSql(sqlAddUser)) throw new Exception("Failed to add user.");
 
-                return Ok();
-            }
-
-            throw new Exception("Failed to register user.");
+            return Ok();
         }
 
-        [AllowAnonymous]
-        [HttpPost("Login")]
-        public IActionResult Login(UserForLoginDto userForLogin)
-        {
-            var sqlForHashAndSalt = @"SELECT 
+        throw new Exception("Failed to register user.");
+    }
+
+    [AllowAnonymous]
+    [HttpPost("Login")]
+    public IActionResult Login(UserForLoginDto userForLogin)
+    {
+        var sqlForHashAndSalt = @"SELECT 
                 [PasswordHash],
                 [PasswordSalt] FROM TutorialAppSchema.Auth WHERE Email = '" + userForLogin.Email + "'";
 
-            var userForConfirmation = _dataContext.LoadDataSingle<UserForLoginConfirmationDto>(sqlForHashAndSalt);
-            var passwordHash = GetPasswordHash(userForLogin.Password, userForConfirmation.PasswordSalt);
+        var userForConfirmation = _dataContext.LoadDataSingle<UserForLoginConfirmationDto>(sqlForHashAndSalt);
+        var passwordHash = _authHelper.GetPasswordHash(userForLogin.Password, userForConfirmation.PasswordSalt);
 
-            if (!ConstantTimeComparison(passwordHash, userForConfirmation.PasswordHash)) return StatusCode(401, "Incorrect password!");
+        if (!AuthHelper.ConstantTimeComparison(passwordHash, userForConfirmation.PasswordHash)) return StatusCode(401, "Incorrect password!");
 
-            var userIdSql = "SELECT UserId FROM TutorialAppSchema.Users WHERE Email = '" + userForLogin.Email + "'";
-            var userId = _dataContext.LoadDataSingle<int>(userIdSql);
+        var userIdSql = "SELECT UserId FROM TutorialAppSchema.Users WHERE Email = '" + userForLogin.Email + "'";
+        var userId = _dataContext.LoadDataSingle<int>(userIdSql);
 
-            return Ok(new Dictionary<string, string>
-            {
-                { "token", CreateToken(userId) }
-            });
-        }
-
-        [HttpGet("RefreshToken")]
-        public string RefreshToken()
+        return Ok(new Dictionary<string, string>
         {
-            var userIdSql = @"
+            { "token", _authHelper.CreateToken(userId) }
+        });
+    }
+
+    [HttpGet("RefreshToken")]
+    public string RefreshToken()
+    {
+        var userIdSql = @"
                 SELECT UserId FROM TutorialAppSchema.Users WHERE UserId = '" + User.FindFirst("userId")?.Value + "'";
 
-            var userId = _dataContext.LoadDataSingle<int>(userIdSql);
+        var userId = _dataContext.LoadDataSingle<int>(userIdSql);
 
-            return CreateToken(userId);
-        }
-
-        private byte[] GetPasswordHash(string password, byte[] passwordSalt)
-        {
-            var passwordSaltPlusString = _configuration.GetSection("AppSettings:PasswordKey").Value + Convert.ToBase64String(passwordSalt);
-
-            return KeyDerivation.Pbkdf2(password, Encoding.ASCII.GetBytes(passwordSaltPlusString), KeyDerivationPrf.HMACSHA256, 100000, 256 / 8);
-        }
-
-        private static bool ConstantTimeComparison(byte[] a, byte[] b)
-        {
-            if (a.Length != b.Length)
-                return false;
-
-            var result = 0;
-            for (var i = 0; i < a.Length; i++) result |= a[i] ^ b[i];
-
-            return result == 0;
-        }
-
-
-        private string CreateToken(int userId)
-        {
-            Claim[] claims = new Claim[]
-            {
-                new("userId", userId.ToString())
-            };
-
-            var tokenKeyString = _configuration.GetSection("AppSettings:TokenKey").Value;
-
-            var tokenKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(tokenKeyString != null ? tokenKeyString : ""));
-
-            var credentials = new SigningCredentials(tokenKey, SecurityAlgorithms.HmacSha512Signature);
-
-            var descriptor = new SecurityTokenDescriptor()
-            {
-                Subject = new ClaimsIdentity(claims),
-                SigningCredentials = credentials,
-                Expires = DateTime.Now.AddDays(1)
-            };
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-
-            var token = tokenHandler.CreateToken(descriptor);
-
-            return tokenHandler.WriteToken(token);
-        }
+        return _authHelper.CreateToken(userId);
     }
 }
