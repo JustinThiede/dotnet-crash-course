@@ -1,4 +1,4 @@
-﻿namespace Intermediate.Models;
+﻿
 
 public class UserComplete
 {
@@ -12,4 +12,6 @@ public class UserComplete
     public string Department { get; set; } = "";
     public decimal Salary { get; set; }
     public decimal AvgSalary { get; set; }
+
+    public Dictionary<string, string> User2 { get; set; }
 }
