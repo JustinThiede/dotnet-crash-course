@@ -8,7 +8,10 @@
 *bin
 *obj
 /DotnetApi/Basic/Properties/launchSettings.json
-/.gitignore
 /DotnetApi/Basic/appsettings.Development.json
 /DotnetApi/Basic/appsettings.json
-/.gitignore
+/DotnetApi/Basic/Migrations/20230728074418_CascadeDeleteForUserJobInfo.cs
+/DotnetApi/Basic/Migrations/20230728074418_CascadeDeleteForUserJobInfo.Designer.cs
+/DotnetApi/Basic/Migrations/DataContextEFModelSnapshot.cs
+*.gitignore
+/DotnetApi/Basic/Basic.csproj

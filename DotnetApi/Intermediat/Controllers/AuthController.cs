@@ -1,13 +1,10 @@
 ﻿using System.Data;
-using System.Security.Cryptography;
 using Dapper;
 using Intermediate.Data;
 using Intermediate.Dtos;
 using Intermediate.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
-using Microsoft.IdentityModel.Tokens;
 
 namespace Intermediate.Controllers;
 
