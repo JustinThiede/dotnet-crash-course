@@ -1,5 +1,4 @@
 ﻿using Intermediate.Data;
-using Intermediate.Dtos;
 using Intermediate.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,9 +25,10 @@ public class PostController : ControllerBase
 
         if (postId != 0) parameters += ", @PostId=" + postId.ToString();
         if (userId != 0) parameters += ", @UserId=" + userId.ToString();
+
         if (searchParam.ToLower() != "none") parameters += ", @SearchValue='" + searchParam + "'";
 
-        if (parameters.Length > 0) sql += parameters.Substring(1);
+        if (parameters.Length > 0) sql += parameters[1..];
 
         return _dapper.LoadData<Post>(sql);
     }
@@ -36,8 +36,7 @@ public class PostController : ControllerBase
     [HttpGet("MyPosts")]
     public IEnumerable<Post> GetMyPosts()
     {
-        var sql = @"EXEC TutorialAppSchema.spPosts_Get @UserId = " +
-                  User.FindFirst("userId")?.Value;
+        var sql = @"EXEC TutorialAppSchema.spPosts_Get @UserId = " + User.FindFirst("userId")?.Value;
 
         return _dapper.LoadData<Post>(sql);
     }
@@ -61,10 +60,7 @@ public class PostController : ControllerBase
     [HttpDelete("Post/{postId}")]
     public IActionResult DeletePost(int postId)
     {
-        var sql = @"EXEC TutorialAppSchema.spPost_Delete @PostId = " +
-                  postId.ToString() +
-                  ", @UserId = " + User.FindFirst("userId")?.Value;
-
+        var sql = @"EXEC TutorialAppSchema.spPost_Delete @PostId = " + postId.ToString() + ", @UserId = " + User.FindFirst("userId")?.Value;
 
         if (_dapper.ExecuteSql(sql)) return Ok();
 
