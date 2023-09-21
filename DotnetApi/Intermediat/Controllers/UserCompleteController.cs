@@ -1,6 +1,7 @@
-﻿using Intermediate.Models;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Intermediate.Data;
+using Dapper;
+using System.Data;
 
 namespace Intermediate.Controllers;
 
@@ -26,32 +27,54 @@ public class UserCompleteController : ControllerBase
     public IEnumerable<UserComplete> GetUsers(int userId, bool isActive)
     {
         var sql = @"EXEC TutorialAppSchema.spUsers_Get";
-        var parameters = "";
+        var stringParameters = "";
+        var sqlParameters = new DynamicParameters();
 
-        if (userId != 0) parameters += ", @UserId=" + userId.ToString();
-        if (isActive) parameters += ", @Active=" + isActive.ToString();
+        if (userId != 0)
+        {
+            stringParameters += ", @UserId=@UserIdParameter";
+            sqlParameters.Add("@UserIdParameter", userId, DbType.Int32);
+        }
 
-        if (parameters.Length > 0) sql += parameters[1..];
+        if (isActive)
+        {
+            stringParameters += ", @Active=@ActiveParameter";
+            sqlParameters.Add("@ActiveParameter", isActive, DbType.Boolean);
+        }
 
-        var users = _dapper.LoadData<UserComplete>(sql);
+        if (stringParameters.Length > 0) sql += stringParameters[1..];
+
+        var users = _dapper.LoadDataWithParameters<UserComplete>(sql, sqlParameters);
         return users;
     }
 
     [HttpPut("UpsertUser")]
     public IActionResult UpsertUser(UserComplete user)
     {
-        var sql = @"EXEC TutorialAppSchema.spUser_Upsert
-            @FirstName = '" + user.FirstName +
-                  "', @LastName = '" + user.LastName +
-                  "', @Email = '" + user.Email +
-                  "', @Gender = '" + user.Gender +
-                  "', @Active = '" + user.Active +
-                  "', @JobTitle = '" + user.JobTitle +
-                  "', @Department = '" + user.Department +
-                  "', @Salary = '" + user.Salary +
-                  "', @UserId = " + user.UserId;
+        const string sql = @"EXEC TutorialAppSchema.spUser_Upsert
+            @FirstName = @FirstNameParameter, 
+            @LastName = @LastNameParameter, 
+            @Email = @EmailParameter, 
+            @Gender = @GenderParameter, 
+            @Active = @ActiveParameter, 
+            @JobTitle = @JobTitleParameter, 
+            @Department = @DepartmentParameter, 
+            @Salary = @SalaryParameter, 
+            @UserId = @UserIdParameter";
 
-        if (_dapper.ExecuteSql(sql)) return Ok();
+        var sqlParameters = new DynamicParameters();
+
+        sqlParameters.Add("@FirstNameParameter", user.FirstName, DbType.String);
+        sqlParameters.Add("@LastNameParameter", user.LastName, DbType.String);
+        sqlParameters.Add("@EmailParameter", user.Email, DbType.String);
+        sqlParameters.Add("@GenderParameter", user.Gender, DbType.String);
+        sqlParameters.Add("@ActiveParameter", user.Active, DbType.Boolean);
+        sqlParameters.Add("@JobTitleParameter", user.JobTitle, DbType.String);
+        sqlParameters.Add("@DepartmentParameter", user.Department, DbType.String);
+        sqlParameters.Add("@SalaryParameter", user.Salary, DbType.Decimal);
+        sqlParameters.Add("@UserIdParameter", user.UserId, DbType.Int32);
+
+        if (_dapper.ExecuteSqlWithParameters(sql, sqlParameters)) return Ok();
 
         throw new Exception("Failed to Update User");
     }
@@ -59,10 +82,12 @@ public class UserCompleteController : ControllerBase
     [HttpDelete("DeleteUser/{userId}")]
     public IActionResult DeleteUser(int userId)
     {
-        var sql = @"TutorialAppSchema.spUser_Delete
-            @UserId = " + userId.ToString();
+        const string sql = @"TutorialAppSchema.spUser_Delete @UserId = @UserIdParameter";
 
-        if (_dapper.ExecuteSql(sql)) return Ok();
+        var sqlParameters = new DynamicParameters();
+        sqlParameters.Add("@UserIdParameter", userId, DbType.Int32);
+
+        if (_dapper.ExecuteSqlWithParameters(sql, sqlParameters)) return Ok();
 
         throw new Exception("Failed to Delete User");
     }
