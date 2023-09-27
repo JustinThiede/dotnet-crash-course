@@ -18,8 +18,6 @@ builder.Services.AddCors((options) =>
     options.AddPolicy("ProdCors", (corsBuilder) => { corsBuilder.WithOrigins("http://myProductionSite.com").AllowAnyMethod().AllowAnyHeader().AllowCredentials(); });
 });
 
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-
 var tokenKeyString = builder.Configuration.GetSection("AppSettings:TokenKey").Value;
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
